@@ -7,27 +7,26 @@ on:
     branches: [ develop ]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        python-version: [ "3.10", "3.11", "3.12" ]
-
+  test-890p-single:
+    runs-on: k8s-runner-group-cpu-flytiger
+    container:
+      image: ghcr.io/actions/actions-runner:latest
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
-      - name: 设置 Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: "890P 单卡 (1 PPU)"
+        uses: flytiger-eco/ppu-distributed-action@main
         with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: 安装依赖
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: 运行测试
-        run: |
-          pytest tests/ -v
+          nnodes: 0
+          nproc_per_node: 1
+          node_selector: "board-type=ZW-M890P"
+          host_volumes: "/nas_aisw:/nas_aisw,/wl_nas:/mnt/wl_nas"
+          image: "reg.docker.alibaba-inc.com/ai-tmp/llm:pytorch2.9.0-ubuntu24.04-cuda13.0-sglang0.5.10-py312-ppu202605281910"
+          command: |
+            echo '=== PPU Verification ===' &&
+            echo "Hostname: $(hostname), Node: $NODE_NAME" &&
+            echo "RANK=$RANK NPROC_PER_NODE=$NPROC_PER_NODE" &&
+            ppu-smi &&
+            echo '--- ls /nas_aisw ---' && ls /nas_aisw &&
+            echo '--- ls /mnt/wl_nas ---' && ls /mnt/wl_nas &&
+            echo '=== DONE ==='
+          namespace: ppu-sched
+          timeout_minutes: 10
